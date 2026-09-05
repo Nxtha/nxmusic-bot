@@ -99,6 +99,10 @@ module.exports = {
                     await this.handleAutoplay(interaction, player, requesterId);
                     break;
 
+                case 'music_247':
+                    await this.handle247(interaction, player, requesterId);
+                    break;
+
                 case 'music_lyrics':
                     await this.handleLyrics(interaction, player);
                     break;
@@ -124,17 +128,17 @@ module.exports = {
     },
 
     // Authorization control function
-    isAuthorized(interaction, requesterId) {
+    isAuthorized(interaction) {
         const member = interaction.member;
 
-        // ManageGuild permission check (Sunucuyu Yönet)
-        if (member.permissions.has('ManageGuild')) return true;
-
-        // DJ role check (if exists)
-        if (member.roles.cache.some(role => role.name.toLowerCase().includes('dj'))) return true;
-
-        // Music starter check
-        if (member.id === requesterId) return true;
+        // Semua user yang berada di voice channel yang sama dengan bot boleh mengontrol music player.
+        if (
+            member.voice.channel &&
+       		interaction.guild?.members.me?.voice.channel &&
+        	member.voice.channel.id === interaction.guild.members.me.voice.channel.id
+        ) {
+            return true;
+        }
 
         return false;
     },
@@ -544,6 +548,76 @@ module.exports = {
         }
     },
 
+    async handle247(interaction, player, requesterId) {
+    if (!this.isAuthorized(interaction, requesterId)) {
+        return await interaction.reply({
+            content: await LanguageManager.getTranslation(
+                interaction.guild?.id,
+                'buttonhandler.not_authorized'
+            ),
+            flags: [1 << 6]
+        });
+    }
+
+    player.twentyFourSeven = !player.twentyFourSeven;
+
+    if (player.twentyFourSeven) {
+        // 24/7 ON
+        player.clearInactivityTimer(false);
+
+        // Kalau sedang sendirian di VC, jangan pause karena alone
+        player.pauseReasons.delete('alone');
+
+        // Simpan state
+        await player.persistState('247-enabled', true);
+
+        const embed = new EmbedBuilder()
+            .setTitle('♾️ 24/7 Mode Enabled')
+            .setDescription(
+                'Bot akan tetap berada di voice channel meskipun semua user keluar.'
+            )
+            .setColor('#00FF00')
+            .setTimestamp();
+
+        await interaction.reply({
+            embeds: [embed],
+            flags: [1 << 6]
+        });
+    } else {
+        // 24/7 OFF
+        await player.persistState('247-disabled', true);
+
+        const embed = new EmbedBuilder()
+            .setTitle('♾️ 24/7 Mode Disabled')
+            .setDescription(
+                'Bot kembali menggunakan auto-leave 5 menit ketika voice channel kosong.'
+            )
+            .setColor(config.bot.embedColor)
+            .setTimestamp();
+
+        await interaction.reply({
+            embeds: [embed],
+            flags: [1 << 6]
+        });
+
+        // Kalau saat ini VC kosong, mulai timer 5 menit
+        const channel = player.voiceChannel;
+
+        const listeners = channel
+            ? channel.members.filter(member => !member.user.bot).size
+            : 0;
+
+        if (listeners === 0) {
+            player.startInactivityTimer();
+        }
+    }
+
+    // Update button supaya berubah ON/OFF
+    if (interaction.client.musicEmbedManager) {
+        await interaction.client.musicEmbedManager.updateNowPlayingEmbed(player);
+    }
+},
+    
     async handleAutoplay(interaction, player, requesterId) {
         const { StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder } = require('discord.js');
         
