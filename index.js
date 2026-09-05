@@ -352,18 +352,30 @@ setTimeout(() => {
             const listeners = channel.members.filter(member => !member.user.bot).size;
 
             if (listeners === 0) {
-                const alreadyPaused = player.pauseReasons.has('alone');
-                player.startInactivityTimer();
-                if (!alreadyPaused && client.musicEmbedManager && player.currentTrack) {
-                    await client.musicEmbedManager.updateNowPlayingEmbed(player);
-                }
-            } else {
-                const wasPausedForAlone = player.pauseReasons.has('alone');
-                player.clearInactivityTimer(true);
-                if (wasPausedForAlone && client.musicEmbedManager && player.currentTrack) {
-                    await client.musicEmbedManager.updateNowPlayingEmbed(player);
-                }
-            }
+                // 24/7 mode: jangan pause dan jangan start auto-leave timer
+                if (player.twentyFourSeven) {
+                    player.clearInactivityTimer(false);
+                    player.pauseReasons.delete('alone');
+
+                    if (player.currentTrack) {
+                        player.resumeFor('alone');
+                    }
+                	return;
+            	}
+
+    			const alreadyPaused = player.pauseReasons.has('alone');
+    			player.startInactivityTimer();
+
+    			if (!alreadyPaused && client.musicEmbedManager && player.currentTrack) {
+        			await client.musicEmbedManager.updateNowPlayingEmbed(player);
+    			}
+			} else {
+    			const wasPausedForAlone = player.pauseReasons.has('alone');
+    			player.clearInactivityTimer(true);
+    			if (wasPausedForAlone && client.musicEmbedManager && player.currentTrack) {
+        			await client.musicEmbedManager.updateNowPlayingEmbed(player);
+    			}
+			}
         }
     });
 

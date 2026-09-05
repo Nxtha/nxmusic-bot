@@ -69,6 +69,7 @@ class MusicPlayer {
         this.loop = false; // false, 'track', 'queue'
         this.shuffle = false;
         this.autoplay = false; // false or genre string: 'pop', 'rock', 'hiphop', etc.
+        this.twentyFourSeven = false;
         this.paused = false;
 
         // Timestamps
@@ -122,7 +123,7 @@ class MusicPlayer {
 
         // Inactivity timeout
         this.inactivityTimer = null;
-        this.inactivityTimeoutMs = 2 * 60 * 1000;
+        this.inactivityTimeoutMs = 5 * 60 * 1000;
 
         // Local file caching
         this.currentDownloadedFile = null; // Path to currently playing downloaded file
@@ -1589,11 +1590,24 @@ class MusicPlayer {
 
             setTimeout(() => {
                 if (this.queue.length === 0 && !this.currentTrack) {
-                    this.cleanup();
-                    const clientInstance = this.guild?.client;
-                    if (clientInstance?.players) {
-                        clientInstance.players.delete(this.guild.id);
+                    // 24/7 mode: stay in voice channel indefinitely
+                    if (this.twentyFourSeven) {
+                        return;
                     }
+                    
+                    const channel = this.voiceChannel;
+                    
+                    const hasListeners = channel
+            			? channel.members.filter(member => !member.user.bot).size > 0
+            			: false;
+                    
+                    // Masih ada user -> tetap stay
+                    if (!hasListeners) {
+          				return;
+                    }
+                    
+                    // Tidak ada user -> mulai 5 menit inactivity timer
+                    this.startInactivityTimer();
                 }
             }, 10000);
         } finally {
@@ -1957,6 +1971,7 @@ class MusicPlayer {
             loop: this.loop,
             shuffle: this.shuffle,
             autoplay: this.autoplay,
+            twentyFourSeven: this.twentyFourSeven,
             paused: this.paused,
             pauseReasons: Array.from(this.pauseReasons || []),
             playbackPositionMs: this.getCurrentTime() || 0,
@@ -1985,6 +2000,7 @@ class MusicPlayer {
         this.loop = state.loop ?? false;
         this.shuffle = state.shuffle ?? false;
         this.autoplay = state.autoplay ?? false;
+        this.twentyFourSeven = state.twentyFourSeven ?? false;
         this.requesterId = state.requesterId || this.requesterId;
 
         this.previousTracks = (state.previousTracks || [])
