@@ -490,23 +490,6 @@ class MusicEmbedManager {
             .setStyle(autoplayStyle)
             .setEmoji(autoplayEmoji)
             .setDisabled(disabled);
-        
-        // 24/7 button
-        const twentyFourSevenLabel = player.twentyFourSeven
-            ? '24/7 ON'
-            : '24/7 OFF';
-
-        const twentyFourSevenButton = new ButtonBuilder()
-            .setCustomId(`music_247:${requesterId}:${sessionId}`)
-            .setLabel(twentyFourSevenLabel)
-            .setStyle(
-                player.twentyFourSeven
-                    ? ButtonStyle.Success
-                    : ButtonStyle.Secondary
-            )
-            .setEmoji('♾️')
-            .setDisabled(false);
-
 
         // Lyrics button (only show if lyrics available)
         const lyricsLabel = await LanguageManager.getTranslation(guildId, 'buttons.lyrics') || 'Lyrics';
@@ -521,7 +504,7 @@ class MusicEmbedManager {
             .addComponents(pauseButton, skipButton, stopButton, queueButton, shuffleButton);
 
         const row2 = new ActionRowBuilder()
-            .addComponents(volumeButton, loopButton, autoplayButton, twentyFourSevenButton, lyricsButton);
+            .addComponents(volumeButton, loopButton, autoplayButton, lyricsButton);
 
         return [row, row2];
     }

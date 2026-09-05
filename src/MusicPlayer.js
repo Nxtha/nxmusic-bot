@@ -1182,7 +1182,13 @@ class MusicPlayer {
     onPlayerIdle(trigger = 'idle') {
         const reason = this.consumePendingEndReason(trigger);
 
-        // Slight delay to allow playback stats to finalize
+        // Manual skip harus diproses secepat mungkin
+        if (reason === 'skip') {
+            this.handleTrackEnd('skip').catch(console.error);
+            return;
+        }
+        
+        // Normal track completion tetap diberi sedikit waktu agar playback stats selesai diperbarui.
         setTimeout(() => {
             this.handleTrackEnd(reason).catch(console.error);
         }, 60);
@@ -1359,19 +1365,29 @@ class MusicPlayer {
 
     skip() {
         if (this.currentTrack) {
-            // Clear track timer
+            return false;
+        }
+            // Skip sedang diproses
+            if (this.skipRequested) {
+                return false;
+            }
+
+        	// Clear watchdog timer
             if (this.trackTimer) {
                 clearTimeout(this.trackTimer);
                 this.trackTimer = null;
             }
-
+        
+            // Tandai sebagai manual skip
             this.pendingEndReason = 'skip';
             this.skipRequested = true;
-            this.audioPlayer.stop(true);
-            this.scheduleStatePersist('skip', 0);
+        
+        	// Paksa audio menjadi Idle
+        	this.audioPlayer.stop(true);
+        	// Persist perubahan
+        	this.scheduleStatePersist('skip', 0);
+        
             return true;
-        }
-        return false;
     }
 
     previous() {
@@ -2070,11 +2086,21 @@ class MusicPlayer {
         }
 
         if (!this.currentTrack) {
-            await PlayerStateManager.removeState(this.guild.id);
-            return;
-        }
+    		if (this.twentyFourSeven) {
+        		this.clearInactivityTimer(false);
+        		this.pauseReasons.delete('alone');
 
-        await this.play(null, resumeMs);
+        		this.startStateSync();
+        		await this.persistState('247-restored', true);
+
+        		return;
+    		}
+
+    		await PlayerStateManager.removeState(this.guild.id);
+    		return;
+		}
+
+		await this.play(null, resumeMs);
 
         if (this.resource?.volume) {
             this.resource.volume.setVolume(this.volume / 100);
@@ -2129,7 +2155,7 @@ class MusicPlayer {
                 this.pendingStateSave = null;
             }
 
-            if (!this.currentTrack && this.queue.length === 0) {
+            if (!this.currentTrack && this.queue.length === 0 && !this.twentyFourSeven) {
                 await PlayerStateManager.removeState(this.guild.id);
                 return;
             }

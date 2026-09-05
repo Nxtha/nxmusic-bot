@@ -99,10 +99,6 @@ module.exports = {
                     await this.handleAutoplay(interaction, player, requesterId);
                     break;
 
-                case 'music_247':
-                    await this.handle247(interaction, player, requesterId);
-                    break;
-
                 case 'music_lyrics':
                     await this.handleLyrics(interaction, player);
                     break;
@@ -222,9 +218,12 @@ module.exports = {
         }
 
         // Sırada müzik yoksa atlanamaz
-        if (player.queue.length === 0) {
+        if (player.queue.length === 0 && !player.autoplay) {
             return await interaction.reply({
-                content: await LanguageManager.getTranslation(interaction.guild?.id, 'buttonhandler.no_songs_to_skip'),
+                content: await LanguageManager.getTranslation(
+                    interaction.guild?.id,
+                    'buttonhandler.no_songs_to_skip'
+                ),
                 flags: [1 << 6]
             });
         }
@@ -547,76 +546,6 @@ module.exports = {
             await interaction.client.musicEmbedManager.updateNowPlayingEmbed(player);
         }
     },
-
-    async handle247(interaction, player, requesterId) {
-    if (!this.isAuthorized(interaction, requesterId)) {
-        return await interaction.reply({
-            content: await LanguageManager.getTranslation(
-                interaction.guild?.id,
-                'buttonhandler.not_authorized'
-            ),
-            flags: [1 << 6]
-        });
-    }
-
-    player.twentyFourSeven = !player.twentyFourSeven;
-
-    if (player.twentyFourSeven) {
-        // 24/7 ON
-        player.clearInactivityTimer(false);
-
-        // Kalau sedang sendirian di VC, jangan pause karena alone
-        player.pauseReasons.delete('alone');
-
-        // Simpan state
-        await player.persistState('247-enabled', true);
-
-        const embed = new EmbedBuilder()
-            .setTitle('♾️ 24/7 Mode Enabled')
-            .setDescription(
-                'Bot akan tetap berada di voice channel meskipun semua user keluar.'
-            )
-            .setColor('#00FF00')
-            .setTimestamp();
-
-        await interaction.reply({
-            embeds: [embed],
-            flags: [1 << 6]
-        });
-    } else {
-        // 24/7 OFF
-        await player.persistState('247-disabled', true);
-
-        const embed = new EmbedBuilder()
-            .setTitle('♾️ 24/7 Mode Disabled')
-            .setDescription(
-                'Bot kembali menggunakan auto-leave 5 menit ketika voice channel kosong.'
-            )
-            .setColor(config.bot.embedColor)
-            .setTimestamp();
-
-        await interaction.reply({
-            embeds: [embed],
-            flags: [1 << 6]
-        });
-
-        // Kalau saat ini VC kosong, mulai timer 5 menit
-        const channel = player.voiceChannel;
-
-        const listeners = channel
-            ? channel.members.filter(member => !member.user.bot).size
-            : 0;
-
-        if (listeners === 0) {
-            player.startInactivityTimer();
-        }
-    }
-
-    // Update button supaya berubah ON/OFF
-    if (interaction.client.musicEmbedManager) {
-        await interaction.client.musicEmbedManager.updateNowPlayingEmbed(player);
-    }
-},
     
     async handleAutoplay(interaction, player, requesterId) {
         const { StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder } = require('discord.js');
