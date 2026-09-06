@@ -1364,30 +1364,25 @@ class MusicPlayer {
     }
 
     skip() {
-        if (this.currentTrack) {
-            return false;
-        }
-            // Skip sedang diproses
-            if (this.skipRequested) {
-                return false;
-            }
-
-        	// Clear watchdog timer
+        // A skip is valid while a track is active OR while autoplay is currently transitioning to the next track.
+        if (this.currentTrack || (this.autoplay && this.isTransitioning)) {
             if (this.trackTimer) {
                 clearTimeout(this.trackTimer);
                 this.trackTimer = null;
-            }
-        
-            // Tandai sebagai manual skip
+        	}
+            
             this.pendingEndReason = 'skip';
             this.skipRequested = true;
         
-        	// Paksa audio menjadi Idle
-        	this.audioPlayer.stop(true);
+        	// If autoplay is already transitioning, don't start another transition. Let the current transition finish naturally.
+        	if (!this.isTransitioning) {
+        		this.audioPlayer.stop(true);
+            }
         	// Persist perubahan
         	this.scheduleStatePersist('skip', 0);
-        
             return true;
+    	}
+		return false;
     }
 
     previous() {

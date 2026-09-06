@@ -418,7 +418,7 @@ class MusicEmbedManager {
             .setLabel(skipLabel)
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('⏭️')
-            .setDisabled(disabled || player.queue.length === 0); // Sırada müzik yoksa disabled
+            .setDisabled(disabled || (!player.autoplay && player.queue.length === 0));
 
         const stopButton = new ButtonBuilder()
             .setCustomId(`music_stop:${requesterId}:${sessionId}`)
