@@ -176,37 +176,67 @@ class MusicEmbedManager {
     /**
      * Kuyruğa şarkı eklenmesi durumunu yönetir
      */
-    async handleQueueAddition(player, tracks, member, interaction, isPlaylist) {
-        // Mevcut embed'i güncelle
-        if (player.nowPlayingMessage && player.currentTrack) {
-            await this.updateNowPlayingEmbed(player);
-        }
+	async handleQueueAddition(player, tracks, member, interaction, isPlaylist) {
+    	// Update Now Playing embed
+    	if (player.nowPlayingMessage && player.currentTrack) {
+        	await this.updateNowPlayingEmbed(player);
+    	}
 
-        // Bilgi mesajı gönder
-        const messageText = await this.createQueueAdditionMessage(tracks, member.guild.id, isPlaylist);
+    	// Track pertama yang baru ditambahkan
+    	const firstTrack = tracks[0];
 
-        let infoMessage;
-        if (interaction) {
-            if (interaction.deferred || interaction.replied) {
-                infoMessage = await interaction.editReply({ content: messageText, embeds: [], components: [] });
-            } else {
-                infoMessage = await interaction.reply({ content: messageText, flags: [1 << 6] });
-            }
-        } else {
-            infoMessage = await player.textChannel.send({ content: messageText });
-        }
+    	// Posisi awal track yang baru masuk queue
+    	const startPosition = Math.max(1, player.queue.length - tracks.length + 1);
+    	const endPosition = startPosition + tracks.length - 1;
+    	let messageText;
 
-        // Bilgi mesajını 10 saniye sonra sil
-        setTimeout(async () => {
-            try {
-                await infoMessage.delete();
-            } catch (error) {
-                // Mesaj silinmiş olabilir
-            }
-        }, 10000);
+    	if (isPlaylist && tracks.length > 1) {
+        	messageText =
+            	`➕ **Added to Queue**\n\n` +
+            	`**${tracks.length} songs** added to the queue\n` +
+            	`Requester: ${member}\n` +
+            	`Position: #${startPosition}–#${endPosition}`;
+    	} else {
+        	messageText =
+            	`➕ **Added to Queue**\n\n` +
+            	`Song: **[${firstTrack?.title || 'Unknown Track'}](${firstTrack?.url || ''})**\n` +
+            	`Requester: ${member}\n` +
+            	`Position: #${startPosition}`;
+    	}
 
-        return { success: true, message: 'Added to queue', isNewEmbed: false };
-    }
+    	// Selalu kirim sebagai public message
+    	let infoMessage;
+		
+        if (interaction && (interaction.deferred || interaction.replied)) {
+        	try {
+            	await interaction.deleteReply();
+        	} catch (error) {}
+    	}
+        
+    	try {
+        	infoMessage = await player.textChannel.send({
+            	content: messageText
+        	});
+
+        	// Queue notification hidup selama 30 detik
+        	setTimeout(async () => {
+            	try {
+                	await infoMessage.delete();
+            	} catch (error) {
+                	// Message may already have been deleted
+            	}
+        	}, 30000);
+
+    	} catch (error) {
+        	console.error('Error sending queue addition notification:', error);
+    	}
+
+    	return {
+        	success: true,
+        	message: 'Added to queue',
+        	isNewEmbed: false
+    	};
+	}
 
     /**
      * Now Playing embed'ini oluşturur
@@ -269,6 +299,15 @@ class MusicEmbedManager {
             value: statusValue,
             inline: true
         });
+        
+        // Requester
+		if (track.requestedBy) {
+    		embed.addFields({
+        		name: 'Requester',
+        		value: `${track.requestedBy}`,
+        		inline: true
+    		});
+		}
 
         // Thumbnail
         if (track.thumbnail) {

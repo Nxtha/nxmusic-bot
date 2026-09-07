@@ -262,7 +262,27 @@ module.exports = {
                 embed.setThumbnail(currentTrack.thumbnail);
             }
 
-            await interaction.reply({ embeds: [embed], flags: [1 << 6] });
+            // Acknowledge button interaction tanpa mengirim pesan ephemeral
+			await interaction.deferUpdate();
+
+			// Kirim notification Skip sebagai public message
+			try {
+    			const notificationMessage = await player.textChannel.send({
+        			embeds: [embed]
+    			});
+
+    			// Skip notification hidup selama 1 menit
+    			setTimeout(async () => {
+        			try {
+            			await notificationMessage.delete();
+        			} catch (error) {
+            			// Message may already have been deleted
+        			}
+    			}, 60000);
+
+			} catch (error) {
+    			console.error('Error sending skip notification:', error);
+			}
 
             // Embed Manager ile ana embed'i güncelle
             if (interaction.client.musicEmbedManager && player.currentTrack) {
@@ -331,7 +351,18 @@ module.exports = {
             });
         }
 
-        await interaction.reply({ embeds: [embed], flags: [1 << 6] });
+        // Acknowledge button interaction tanpa mengirim pesan ephemeral
+		await interaction.deferUpdate();
+
+		// Kirim Stop notification sebagai public message.
+		// Tidak ada auto-delete karena notification ini permanent.
+		try {
+    		await player.textChannel.send({
+        		embeds: [embed]
+    		});
+		} catch (error) {
+    		console.error('Error sending stop notification:', error);
+		}
 
         // Ana embed'deki butonları disable yap
         if (client.musicEmbedManager) {
