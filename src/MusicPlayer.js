@@ -1264,8 +1264,15 @@ class MusicPlayer {
     }
 
     startInactivityTimer() {
+        // 24/7 mode harus mengabaikan inactivity timeout sepenuhnya.
+        // Bot tetap di VC walaupun tidak ada user.
+        if (this.twentyFourSeven) {
+            this.clearInactivityTimer(false);
+            this.pauseReasons.delete('alone');
+            return;
+        }
+        
         if (this.inactivityTimer) return;
-
         this.pauseFor('alone');
 
         this.inactivityTimer = setTimeout(async () => {
