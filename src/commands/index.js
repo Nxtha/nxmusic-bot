@@ -1,0 +1,1 @@
+const fs=require('fs');const path=require('path');const commands=[];const byName=new Map();for(const file of fs.readdirSync(__dirname).filter(f=>f.endsWith('.js')&&!['_helpers.js','index.js'].includes(f))){const c=require(path.join(__dirname,file));commands.push(c);byName.set(c.data.name,c)}module.exports={commands,byName};

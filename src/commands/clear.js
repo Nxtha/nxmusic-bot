@@ -1,0 +1,1 @@
+const {SlashCommandBuilder}=require('discord.js');const {player,same,temp}=require('./_helpers');const {actionCard}=require('../ui/embeds');module.exports={data:new SlashCommandBuilder().setName('clear').setDescription('Clear the queue'),async execute(i){const p=player(i);same(i,p);p.clear();await temp(i,actionCard('🧹','Queue Cleared',`Queue cleared by <@${i.user.id}>.`));}};
