@@ -1,1 +1,20 @@
-const {SlashCommandBuilder}=require('discord.js');const {player,same,temp}=require('./_helpers');const {actionCard}=require('../ui/embeds');module.exports={data:new SlashCommandBuilder().setName('shuffle').setDescription('Shuffle the queue'),async execute(i){const p=player(i);same(i,p);p.shuffle();await temp(i,actionCard('🔀','Queue Shuffled',`Queue shuffled by <@${i.user.id}>.`));}};
+const {
+    SlashCommandBuilder
+} = require('discord.js');
+const {
+    player,
+    same,
+    temp
+} = require('./_helpers');
+const {
+    actionCard
+} = require('../ui/embeds');
+module.exports = {
+    data: new SlashCommandBuilder().setName('shuffle').setDescription('Shuffle the queue'),
+    async execute(i) {
+        const p = player(i);
+        same(i, p);
+        p.shuffle();
+        await temp(i, actionCard('🔀', 'Queue Shuffled', `Queue shuffled by <@${i.user.id}>.`));
+    }
+};

@@ -1,7 +1,46 @@
-const GENRES=['pop','rock','k-pop','j-pop','anime','hip-hop','r&b','edm','phonk','lo-fi','jazz','classical','metal','reggae','electronic','indie','disco','country','city pop','soundtrack'];
-const queries={pop:['pop music official','pop songs official'],rock:['rock music official','rock songs official'], 'k-pop':['kpop official mv','kpop songs official'],'j-pop':['jpop official','japanese pop music official'],anime:['anime opening official','anime songs official'],'hip-hop':['hip hop official','rap music official'],'r&b':['r&b official','rnb songs official'],edm:['edm music official','electronic dance official'],phonk:['phonk music official','phonk songs'], 'lo-fi':['lofi hip hop music','lofi beats'],jazz:['jazz music official','jazz songs'],classical:['classical music','classical piano music'],metal:['metal music official','metal songs official'],reggae:['reggae music official','reggae songs'],electronic:['electronic music official','electronic songs'],indie:['indie music official','indie songs'],disco:['disco music official','disco songs'],country:['country music official','country songs'], 'city pop':['city pop official','city pop music'],'soundtrack':['soundtrack music official','movie soundtrack songs']};
-function randomGenre(){return GENRES[Math.floor(Math.random()*GENRES.length)]}
-function randomMusicQuery(){const a=['random music official','popular music official','new music official','music mix official'];return a[Math.floor(Math.random()*a.length)]}
-function queryForGenre(g){const a=queries[g]||[`${g} music official`];return a[Math.floor(Math.random()*a.length)]}
-function cleanCandidates(xs,currentId,historyIds=[]){const blocked=['tutorial','lesson','course','how to','guide','podcast','interview','talk show','lecture','review','unboxing','reaction','gameplay','full movie','documentary','audiobook','meditation','asmr'];const seen=new Set([currentId,...historyIds]);return xs.filter(x=>x.id&&!seen.has(x.id)&&x.duration>=30&&x.duration<=600&&!blocked.some(k=>x.title.toLowerCase().includes(k)))}
-module.exports={GENRES,randomGenre,randomMusicQuery,queryForGenre,cleanCandidates};
+const GENRES = ['pop', 'rock', 'k-pop', 'j-pop', 'anime', 'hip-hop', 'r&b', 'edm', 'phonk', 'lo-fi', 'jazz', 'classical', 'metal', 'reggae', 'electronic', 'indie', 'disco', 'country', 'city pop', 'soundtrack'];
+const queries = {
+    pop: ['pop music official', 'pop songs official'],
+    rock: ['rock music official', 'rock songs official'],
+    'k-pop': ['kpop official mv', 'kpop songs official'],
+    'j-pop': ['jpop official', 'japanese pop music official'],
+    anime: ['anime opening official', 'anime songs official'],
+    'hip-hop': ['hip hop official', 'rap music official'],
+    'r&b': ['r&b official', 'rnb songs official'],
+    edm: ['edm music official', 'electronic dance official'],
+    phonk: ['phonk music official', 'phonk songs'],
+    'lo-fi': ['lofi hip hop music', 'lofi beats'],
+    jazz: ['jazz music official', 'jazz songs'],
+    classical: ['classical music', 'classical piano music'],
+    metal: ['metal music official', 'metal songs official'],
+    reggae: ['reggae music official', 'reggae songs'],
+    electronic: ['electronic music official', 'electronic songs'],
+    indie: ['indie music official', 'indie songs'],
+    disco: ['disco music official', 'disco songs'],
+    country: ['country music official', 'country songs'],
+    'city pop': ['city pop official', 'city pop music'],
+    'soundtrack': ['soundtrack music official', 'movie soundtrack songs']
+};
+function randomGenre() {
+    return GENRES[Math.floor(Math.random() * GENRES.length)]
+}
+function randomMusicQuery() {
+    const a = ['random music official', 'popular music official', 'new music official', 'music mix official'];
+    return a[Math.floor(Math.random() * a.length)]
+}
+function queryForGenre(g) {
+    const a = queries[g] || [`${g} music official`];
+    return a[Math.floor(Math.random() * a.length)]
+}
+function cleanCandidates(xs, currentId, historyIds = []) {
+    const blocked = ['tutorial', 'lesson', 'course', 'how to', 'guide', 'podcast', 'interview', 'talk show', 'lecture', 'review', 'unboxing', 'reaction', 'gameplay', 'full movie', 'documentary', 'audiobook', 'meditation', 'asmr'];
+    const seen = new Set([currentId, ...historyIds]);
+    return xs.filter(x => x.id && !seen.has(x.id) && x.duration >= 30 && x.duration <= 600 && !blocked.some(k => x.title.toLowerCase().includes(k)))
+}
+module.exports = {
+    GENRES,
+    randomGenre,
+    randomMusicQuery,
+    queryForGenre,
+    cleanCandidates
+};

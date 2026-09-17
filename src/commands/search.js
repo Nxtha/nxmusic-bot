@@ -1,1 +1,38 @@
-const {SlashCommandBuilder,ActionRowBuilder,StringSelectMenuBuilder}=require('discord.js');const yt=require('../services/YouTube');const {player,voice}=require('./_helpers');const Activity=require('../services/ActivityManager');const cache=new Map();module.exports={data:new SlashCommandBuilder().setName('search').setDescription('Search YouTube and choose a result').addStringOption(o=>o.setName('query').setDescription('Search query').setRequired(true)),cache,async execute(i){const p=player(i);const ch=voice(i,p);await i.deferReply();const msg=await i.editReply('🔎 Searching Song...');Activity.setChannel(p,i.channel);Activity.setMessage(p,msg);await p.connect(ch);const xs=await yt.search(i.options.getString('query',true),5);if(!xs.length)throw new Error('NO_RESULTS');const key=`${i.guildId}:${i.user.id}:${Date.now()}`;cache.set(key,xs);setTimeout(()=>cache.delete(key),30000);const menu=new StringSelectMenuBuilder().setCustomId(`nx:search:${key}`).setPlaceholder('Choose a track').addOptions(xs.map((x,n)=>({label:x.title.slice(0,100),value:String(n),description:(x.uploader||'YouTube').slice(0,100)})));await i.editReply({content:'🔎 Select a result:',components:[new ActionRowBuilder().addComponents(menu)]});setTimeout(()=>i.deleteReply().catch(()=>{}),10000)}};
+const {
+    SlashCommandBuilder,
+    ActionRowBuilder,
+    StringSelectMenuBuilder
+} = require('discord.js');
+const yt = require('../services/YouTube');
+const {
+    player,
+    voice
+} = require('./_helpers');
+const Activity = require('../services/ActivityManager');
+const cache = new Map();
+module.exports = {
+    data: new SlashCommandBuilder().setName('search').setDescription('Search YouTube and choose a result').addStringOption(o => o.setName('query').setDescription('Search query').setRequired(true)),
+    cache,
+    async execute(i) {
+        const p = player(i);
+        const ch = voice(i, p);
+        await i.deferReply();
+        const msg = await i.editReply('🔎 Searching Song...');
+        Activity.setChannel(p, i.channel);
+        Activity.setMessage(p, msg);
+        await p.connect(ch);
+        const xs = await yt.search(i.options.getString('query', true), 5);
+        if (!xs.length) throw new Error('NO_RESULTS');
+        const key = `${i.guildId}:${i.user.id}:${Date.now()}`;
+        cache.set(key, xs);
+        setTimeout(() => cache.delete(key), 30000);
+        const menu = new StringSelectMenuBuilder().setCustomId(`nx:search:${key}`).setPlaceholder('Choose a track').addOptions(xs.map((x, n) => ({
+            label: x.title.slice(0, 100), value: String(n), description: (x.uploader || 'YouTube').slice(0, 100)
+        })));
+        await i.editReply({
+            content: '🔎 Select a result:', components: [new ActionRowBuilder().addComponents(menu)]
+        });
+        setTimeout(() => i.deleteReply().catch(() => {
+        }), 10000)
+    }
+};

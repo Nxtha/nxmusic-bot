@@ -1,1 +1,1 @@
-module.exports=async i=>require('../commands/skip').execute(i);
+module.exports = async i => require('../commands/skip').execute(i);

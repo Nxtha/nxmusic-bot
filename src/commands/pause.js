@@ -1,1 +1,20 @@
-const {SlashCommandBuilder}=require('discord.js');const {player,same,temp}=require('./_helpers');const {actionCard}=require('../ui/embeds');module.exports={data:new SlashCommandBuilder().setName('pause').setDescription('Pause playback'),async execute(i){const p=player(i);same(i,p);p.pause();await temp(i,actionCard('⏸️','Paused',`Paused by <@${i.user.id}>.`));}};
+const {
+    SlashCommandBuilder
+} = require('discord.js');
+const {
+    player,
+    same,
+    temp
+} = require('./_helpers');
+const {
+    actionCard
+} = require('../ui/embeds');
+module.exports = {
+    data: new SlashCommandBuilder().setName('pause').setDescription('Pause playback'),
+    async execute(i) {
+        const p = player(i);
+        same(i, p);
+        p.pause();
+        await temp(i, actionCard('⏸️', 'Paused', `Paused by <@${i.user.id}>.`));
+    }
+};

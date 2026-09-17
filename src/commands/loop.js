@@ -1,1 +1,26 @@
-const {SlashCommandBuilder}=require('discord.js');const {player,same,temp}=require('./_helpers');const {actionCard}=require('../ui/embeds');module.exports={data:new SlashCommandBuilder().setName('loop').setDescription('Set loop mode').addStringOption(o=>o.setName('mode').setDescription('off, song, queue').setRequired(true).addChoices({name:'Off',value:'off'},{name:'Song',value:'song'},{name:'Queue',value:'queue'})),async execute(i){const p=player(i);same(i,p);p.setLoop(i.options.getString('mode',true));await temp(i,actionCard('🔁','Loop Updated',`Loop mode: **${p.loop}** by <@${i.user.id}>.`));}};
+const {
+    SlashCommandBuilder
+} = require('discord.js');
+const {
+    player,
+    same,
+    temp
+} = require('./_helpers');
+const {
+    actionCard
+} = require('../ui/embeds');
+module.exports = {
+    data: new SlashCommandBuilder().setName('loop').setDescription('Set loop mode').addStringOption(o => o.setName('mode').setDescription('off, song, queue').setRequired(true).addChoices({
+        name: 'Off', value: 'off'
+    }, {
+        name: 'Song', value: 'song'
+    }, {
+        name: 'Queue', value: 'queue'
+    })),
+    async execute(i) {
+        const p = player(i);
+        same(i, p);
+        p.setLoop(i.options.getString('mode', true));
+        await temp(i, actionCard('🔁', 'Loop Updated', `Loop mode: **${p.loop}** by <@${i.user.id}>.`));
+    }
+};

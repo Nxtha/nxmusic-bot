@@ -1,1 +1,1 @@
-module.exports=async i=>require('../commands/queue').execute(i);
+module.exports = async i => require('../commands/queue').execute(i);

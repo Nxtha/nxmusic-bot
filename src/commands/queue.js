@@ -1,1 +1,27 @@
-const {SlashCommandBuilder,EmbedBuilder}=require('discord.js');const {player,same,temp}=require('./_helpers');const {formatTime}=require('../utils/time');const config=require('../config/config');module.exports={data:new SlashCommandBuilder().setName('queue').setDescription('Show the queue'),async execute(i){const p=player(i);same(i,p);const lines=p.queue.items.slice(0,15).map((t,n)=>`${n+1}. ${t.autoplay?'🤖':'🎵'} **${t.title.slice(0,70)}** — ${formatTime(t.duration)}`);const embed=new EmbedBuilder().setColor(config.embedColor).setTitle('📋 Queue').setDescription(lines.length?lines.join('\n'):'Queue is empty.').setFooter({text:`${p.queue.items.length} queued • Volume ${p.volume}%`});await temp(i,{embeds:[embed]},10000)}};
+const {
+    SlashCommandBuilder,
+    EmbedBuilder
+} = require('discord.js');
+const {
+    player,
+    same,
+    temp
+} = require('./_helpers');
+const {
+    formatTime
+} = require('../utils/time');
+const config = require('../config/config');
+module.exports = {
+    data: new SlashCommandBuilder().setName('queue').setDescription('Show the queue'),
+    async execute(i) {
+        const p = player(i);
+        same(i, p);
+        const lines = p.queue.items.slice(0, 15).map((t, n) => `${n+1}. ${t.autoplay?'🤖':'🎵'} **${t.title.slice(0,70)}** — ${formatTime(t.duration)}`);
+        const embed = new EmbedBuilder().setColor(config.embedColor).setTitle('📋 Queue').setDescription(lines.length ? lines.join('\n'): 'Queue is empty.').setFooter({
+            text: `${p.queue.items.length} queued • Volume ${p.volume}%`
+        });
+        await temp(i, {
+            embeds: [embed]
+        }, 10000)
+    }
+};
