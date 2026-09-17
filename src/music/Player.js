@@ -11,10 +11,10 @@ class Player{
     this.guildId=guildId;this.queue=new Queue(limit);this.current=null;this.voiceChannelId=null;this.connection=null;this.channel=null;
     this.volume=defaults.volume;this.autoplay=defaults.autoplay;this.autoplayMode='similar';this.autoplayGenre=null;this.loop='off';this.always247=defaults.always247;
     this.startedAt=0;this.pausedAt=0;this.endedAt=0;this.idleTimer=null;this.sessionChannelId=null;this.positionOffset=0;this.onEvent=()=>{};this.busy=false;this.skipRequested=false;
-    this.recovering=false;this.recoveryAttempts=0;this.cachedPlaybackId=null;this.cachedPlaybackUntil=0;this.activeStream=null;this.stopping=false;
+    this.recovering=false;this.recoveryAttempts=0;this.cachedPlaybackId=null;this.cachedPlaybackUntil=0;this.activeStream=null;this.activeResource=null;this.stopping=false;this.failedTrackHandling=false;
     this.player=createAudioPlayer({behaviors:{noSubscriber:NoSubscriberBehavior.Pause}});
     this.player.on(AudioPlayerStatus.Idle,()=>{if(!this.recovering&&!this.stopping)this._advance()});
-    this.player.on('error',e=>{if(this.recovering)return;this.onEvent('error',e);if(this.current)this._recoverPlayback(e);else this._advance()});
+    this.player.on('error',e=>{if(this.recovering)return;if(this.current&&this._isNonRecoverablePlaybackError(e))this._failCurrentTrack(e).catch(()=>{});else {this.onEvent('error',e);if(this.current)this._recoverPlayback(e);else this._advance()}});
   }
 
   async connect(channel){
@@ -49,15 +49,42 @@ class Player{
     this.activeStream=result;
     result.done.finally(()=>{if(this.activeStream===result)this.activeStream=null;}).catch(()=>{});
     result.done.catch(err=>{
-      if(this.current?.id===startedTrackId&&!this.skipRequested&&!this.recovering)this._recoverPlayback(err).catch(()=>{});
+      if(this.current?.id!==startedTrackId||this.skipRequested||this.recovering)return;
+      if(this._isNonRecoverablePlaybackError(err)){this._failCurrentTrack(err).catch(()=>{});return;}
+      this._recoverPlayback(err).catch(()=>{});
     });
     const resource=createAudioResource(result.stream,{inputType:StreamType.Raw,inlineVolume:true});
-    resource.volume?.setVolume(this.volume/100);this.player.play(resource);
+    resource.volume?.setVolume(this.volume/100);
+    this.activeResource=resource;
+    this.player.play(resource);
     this.positionOffset=offset;this.startedAt=Date.now()-offset*1000;this.pausedAt=0;this.onEvent('play',this.current);
+  }
+
+  _isNonRecoverablePlaybackError(error){
+    const text=String(error?.message||error||'');
+    return /please sign in|sign in to confirm|cookies-from-browser|use --cookies|authentication|no-call-home|deprecated feature/i.test(text);
+  }
+
+  async _failCurrentTrack(error){
+    if(this.failedTrackHandling||!this.current)return;
+    this.failedTrackHandling=true;
+    this.onEvent('error',error);
+    const failedId=this.current.id;
+    try{
+      if(this.activeStream?.destroy)this.activeStream.destroy();
+      this.activeStream=null;this.activeResource=null;this.recovering=false;this.recoveryAttempts=0;
+      this.skipRequested=true;
+      try{this.player.stop(true)}catch{}
+      await sleep(100);
+      if(this.current?.id===failedId)this.current=null;
+      this.skipRequested=false;
+      setImmediate(()=>this._advance().catch(e=>this.onEvent('error',e)));
+    }finally{this.failedTrackHandling=false;}
   }
 
   async _recoverPlayback(error){
     if(this.recovering||!this.current||this.skipRequested)return;
+    if(this._isNonRecoverablePlaybackError(error)){await this._failCurrentTrack(error);return;}
     this.recovering=true;this.recoveryAttempts++;
     const id=cacheId();
     this.cachedPlaybackId=id;this.cachedPlaybackUntil=Date.now()+10000;
@@ -105,8 +132,23 @@ class Player{
         if(!next&&this.loop==='queue'&&this.queue.history.length){this.queue.items=this.queue.history.map(x=>({...x}));this.queue.history=[];next=this.queue.next()}
         if(!next&&this.autoplay){
           let candidates=[];let genre=this.autoplayGenre;
-          if(this.autoplayMode==='similar')candidates=await YouTube.search(`${this.current?.title||'popular'} similar music`,10);else if(this.autoplayMode==='random')candidates=await YouTube.search(randomMusicQuery(),10);else if(this.autoplayMode==='genre'&&genre)candidates=await YouTube.search(queryForGenre(genre),10);
-          const ids=this.queue.history.slice(-20).map(x=>x.id);const filtered=cleanCandidates(candidates,this.current?.id,ids);next=filtered[0]||candidates.find(x=>x.id!==this.current?.id)||null;if(next)next.autoplay=true;
+          const ids=this.queue.history.slice(-20).map(x=>x.id);
+          if(this.autoplayMode==='similar'){
+            const title=this.current?.title||'popular music';
+            const queries=[`${title} similar music`, `songs similar to ${title}`, `${title} similar artists`];
+            for(const query of queries){
+              candidates=await YouTube.search(query,10);
+              const filtered=cleanCandidates(candidates,this.current?.id,ids);
+              if(filtered.length){next=filtered[0];break;}
+            }
+          }else if(this.autoplayMode==='random'){
+            candidates=await YouTube.search(randomMusicQuery(),10);
+            next=cleanCandidates(candidates,this.current?.id,ids)[0]||null;
+          }else if(this.autoplayMode==='genre'&&genre){
+            candidates=await YouTube.search(queryForGenre(genre),10);
+            next=cleanCandidates(candidates,this.current?.id,ids)[0]||null;
+          }
+          if(next)next.autoplay=true;
         }
         if(!next){this.current=null;this.endedAt=Date.now();this.sessionChannelId=null;this.onEvent('idle');this._scheduleIdleDisconnect();return}
         const previous=this.current;if(previous)this.queue.history.push(previous);
@@ -121,11 +163,11 @@ class Player{
   resume(){this.player.unpause();this.startedAt=Date.now()-this.pausedAt*1000;this.onEvent('resume')}
   skip(){this.skipRequested=true;this.recovering=false;if(this.activeStream?.destroy)this.activeStream.destroy();this.activeStream=null;try{this.player.stop(true)}catch{}this.onEvent('skip')}
   async previous(){const prev=this.queue.history.pop();if(!prev)return false;if(this.current)this.queue.items.unshift(this.current);await this._start(prev);this.onEvent('previous');return true}
-  stop(){this.stopping=true;if(this.activeStream?.destroy)this.activeStream.destroy();this.activeStream=null;if(this.idleTimer){clearTimeout(this.idleTimer);this.idleTimer=null;}this.endedAt=Date.now();this.sessionChannelId=null;this.queue.clear();this.queue.history=[];this.current=null;this.skipRequested=false;this.recovering=false;this.recoveryAttempts=0;this.cachedPlaybackId=null;this.cachedPlaybackUntil=0;this.activeStream=null;this.player.stop(true);this.onEvent('stop');if(!this.always247){try{this.connection?.destroy()}catch{}this.connection=null;this.voiceChannelId=null;this.channel=null}this.stopping=false}
+  stop(){this.stopping=true;if(this.activeStream?.destroy)this.activeStream.destroy();this.activeStream=null;if(this.idleTimer){clearTimeout(this.idleTimer);this.idleTimer=null;}this.endedAt=Date.now();this.sessionChannelId=null;this.queue.clear();this.queue.history=[];this.current=null;this.skipRequested=false;this.recovering=false;this.recoveryAttempts=0;this.cachedPlaybackId=null;this.cachedPlaybackUntil=0;this.activeStream=null;this.activeResource=null;this.player.stop(true);this.onEvent('stop');if(!this.always247){try{this.connection?.destroy()}catch{}this.connection=null;this.voiceChannelId=null;this.channel=null}this.stopping=false}
   shuffle(){this.queue.shuffle();this.onEvent('shuffle')}
   remove(n){const x=this.queue.remove(n);if(x)this.onEvent('remove',x);return x}
   clear(){this.queue.clear();this.onEvent('clear')}
-  setVolume(v){this.volume=Math.max(0,Math.min(100,Number(v)||0));this.onEvent('volume',this.volume)}
+  setVolume(v){this.volume=Math.max(0,Math.min(100,Number(v)||0));this.activeResource?.volume?.setVolume(this.volume/100);this.onEvent('volume',this.volume)}
   setLoop(mode){if(!['off','song','queue'].includes(mode))throw new Error('INVALID_MODE');this.loop=mode;this.onEvent('loop',mode)}
   setAutoplay(mode,genre){if(!['off','similar','genre','random'].includes(mode))throw new Error('INVALID_MODE');if(mode==='genre'&&!genre)throw new Error('INVALID_MODE');this.autoplay=mode!=='off';this.autoplayMode=mode;this.autoplayGenre=mode==='genre'?genre:null;this.onEvent('autoplay',mode,genre)}
   async seek(sec){if(!this.current)throw new Error('NO_CURRENT');const s=Math.max(0,Math.min(Number(sec)||0,this.current.duration||Number(sec)||0));const t={...this.current};this.recovering=true;if(this.activeStream?.destroy)this.activeStream.destroy();this.activeStream=null;this.player.stop(true);await new Promise(r=>setTimeout(r,100));try{await this._start(t,s)}finally{this.recovering=false}this.onEvent('seek',s)}

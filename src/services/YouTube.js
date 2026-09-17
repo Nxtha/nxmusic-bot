@@ -38,7 +38,6 @@ function addCommon(flags = {}) {
   return {
     ...cookieObject(),
     noWarnings: true,
-    noCallHome: true,
     ...flags
   };
 }
